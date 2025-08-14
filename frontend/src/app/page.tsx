@@ -60,9 +60,10 @@ export default function Home() {
       if (!sentimentRes.ok) throw new Error(`/sentiment failed`);
       const sentimentJson = await sentimentRes.json();
       setSentiment(sentimentJson?.sentiment || "");
-    } catch (e: any) {
-      setErr(e?.message ?? "Something went wrong.");
-    } finally {
+    } catch (err: unknown) {
+  const msg = err instanceof Error ? err.message : "Something went wrong.";
+  setErr(msg);
+} finally {
       setLoading(false);
     }
   };
