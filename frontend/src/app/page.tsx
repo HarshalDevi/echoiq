@@ -1,55 +1,70 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
+
+const API =
+  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/, "") ?? "http://localhost:10000";
 
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null)
-  const [transcript, setTranscript] = useState('')
-  const [summary, setSummary] = useState('')
-  const [sentiment, setSentiment] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [file, setFile] = useState<File | null>(null);
+  const [transcript, setTranscript] = useState("");
+  const [summary, setSummary] = useState("");
+  const [sentiment, setSentiment] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const handleUpload = async () => {
-    if (!file) {
-      alert('Please upload a .wav file.')
-      return
-    }
+    setErr(null);
+    setTranscript("");
+    setSummary("");
+    setSentiment("");
 
-    setLoading(true)
-    const formData = new FormData()
-    formData.append('file', file)
+    if (!file) {
+      setErr("Please upload a .wav file.");
+      return;
+    }
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/transcribe', {
-        method: 'POST',
-        body: formData,
-      })
-      const data = await res.json()
-      setTranscript(data.transcript)
+      setLoading(true);
 
-      const sumRes = await fetch('http://127.0.0.1:8000/summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: data.transcript }),
-      })
-      const sumData = await sumRes.json()
-      setSummary(sumData.summary)
+      // 1) /transcribe
+      const fd = new FormData();
+      fd.append("file", file, file.name || "audio.wav");
 
-      const sentiRes = await fetch('http://127.0.0.1:8000/sentiment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: data.transcript }),
-      })
-      const sentiData = await sentiRes.json()
-      setSentiment(sentiData.sentiment)
+      const transcribeRes = await fetch(`${API}/transcribe`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!transcribeRes.ok) throw new Error(`/transcribe failed`);
+      const transcribeJson = await transcribeRes.json();
+      const text: string = transcribeJson?.transcript || "";
+      setTranscript(text);
 
-      alert('Analysis complete!')
-    } catch (err) {
-      alert('Something went wrong.')
+      // 2) /summarize
+      const summarizeRes = await fetch(`${API}/summarize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!summarizeRes.ok) throw new Error(`/summarize failed`);
+      const summarizeJson = await summarizeRes.json();
+      setSummary(summarizeJson?.summary || "");
+
+      // 3) /sentiment
+      const sentimentRes = await fetch(`${API}/sentiment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!sentimentRes.ok) throw new Error(`/sentiment failed`);
+      const sentimentJson = await sentimentRes.json();
+      setSentiment(sentimentJson?.sentiment || "");
+    } catch (e: any) {
+      setErr(e?.message ?? "Something went wrong.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <>
@@ -58,11 +73,26 @@ export default function Home() {
         <h1 className="title">EchoIQ</h1>
         <p className="subtitle">Transcribe. Summarize. Understand.</p>
 
-        <input type="file" accept=".wav" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <p style={{ opacity: 0.7, fontSize: 12, marginBottom: 8 }}>
+          API: {API}
+        </p>
 
-        <button onClick={handleUpload} disabled={loading}>
-          {loading ? 'Analyzing...' : 'Upload & Analyze'}
+        <input
+          type="file"
+          accept=".wav,audio/wav"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+        />
+
+        <button onClick={handleUpload} disabled={loading} style={{ marginTop: 12 }}>
+          {loading ? "Analyzing..." : "Upload & Analyze"}
         </button>
+
+        {err && (
+          <div className="result-box" style={{ borderColor: "#f87171", color: "#fecaca" }}>
+            <h3>Error</h3>
+            <p>{err}</p>
+          </div>
+        )}
 
         {transcript && (
           <div className="result-box">
@@ -84,5 +114,5 @@ export default function Home() {
         )}
       </div>
     </>
-  )
+  );
 }
