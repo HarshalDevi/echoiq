@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 
 // Use Render in prod (via NEXT_PUBLIC_API_BASE), fall back to local in dev
 const API =
   process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/, "") ?? "http://localhost:10000";
+
+type TranscribeResponse = { transcript?: string };
+type SummarizeResponse = { summary?: string };
+type SentimentResponse = { sentiment?: string };
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
@@ -13,6 +17,10 @@ export default function Home() {
   const [sentiment, setSentiment] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFile(e.target.files?.[0] ?? null);
+  };
 
   const handleUpload = async () => {
     setErr(null);
@@ -37,8 +45,8 @@ export default function Home() {
         body: fd,
       });
       if (!transcribeRes.ok) throw new Error(`/transcribe failed`);
-      const transcribeJson = await transcribeRes.json();
-      const text: string = transcribeJson?.transcript || "";
+      const transcribeJson = (await transcribeRes.json()) as TranscribeResponse;
+      const text = transcribeJson.transcript ?? "";
       setTranscript(text);
 
       // 2) /summarize
@@ -48,8 +56,8 @@ export default function Home() {
         body: JSON.stringify({ text }),
       });
       if (!summarizeRes.ok) throw new Error(`/summarize failed`);
-      const summarizeJson = await summarizeRes.json();
-      setSummary(summarizeJson?.summary || "");
+      const summarizeJson = (await summarizeRes.json()) as SummarizeResponse;
+      setSummary(summarizeJson.summary ?? "");
 
       // 3) /sentiment
       const sentimentRes = await fetch(`${API}/sentiment`, {
@@ -58,12 +66,12 @@ export default function Home() {
         body: JSON.stringify({ text }),
       });
       if (!sentimentRes.ok) throw new Error(`/sentiment failed`);
-      const sentimentJson = await sentimentRes.json();
-      setSentiment(sentimentJson?.sentiment || "");
+      const sentimentJson = (await sentimentRes.json()) as SentimentResponse;
+      setSentiment(sentimentJson.sentiment ?? "");
     } catch (err: unknown) {
-  const msg = err instanceof Error ? err.message : "Something went wrong.";
-  setErr(msg);
-} finally {
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      setErr(msg);
+    } finally {
       setLoading(false);
     }
   };
@@ -77,11 +85,7 @@ export default function Home() {
 
         <p style={{ opacity: 0.7, fontSize: 12, marginBottom: 8 }}>API: {API}</p>
 
-        <input
-          type="file"
-          accept=".wav,audio/wav"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-        />
+        <input type="file" accept=".wav,audio/wav" onChange={onFileChange} />
 
         <button onClick={handleUpload} disabled={loading} style={{ marginTop: 12 }}>
           {loading ? "Analyzing..." : "Upload & Analyze"}
