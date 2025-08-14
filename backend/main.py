@@ -1,20 +1,28 @@
 from fastapi import FastAPI, WebSocket, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from signaling import signaling_router          # keep your websocket router
-from ai_engine import AIEngine                  # uses faster-whisper + t5-small + VADER
+from signaling import signaling_router
+from ai_engine import AIEngine
 
 app = FastAPI()
 
-# Allow your frontend; tighten later to your exact Vercel URL
+# --- CORS: production Vercel domain + previews + local dev ---
+ALLOWED_ORIGINS = [
+    "https://echoiq.vercel.app",   # production
+    "http://localhost:3000",       # local dev
+]
+# allow preview deploys like https://echoiq-xxxxx.vercel.app
+ALLOWED_ORIGIN_REGEX = r"^https://echoiq-[a-z0-9\-]+\.vercel\.app$"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],            # later: ["https://<your-frontend>.vercel.app", "http://localhost:3000"]
-    allow_credentials=True,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
+    allow_credentials=False,       # not using cookies -> keep CORS simple
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# WebSocket routes
+# WebSocket routes (unchanged)
 app.include_router(signaling_router)
 
 # ---- Lazy init so models load only on first use ----
@@ -28,6 +36,10 @@ def get_engine() -> AIEngine:
 @app.get("/")
 def root():
     return {"message": "EchoIQ backend is live"}
+
+@app.get("/health")
+def health():
+    return {"ok": True}
 
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
