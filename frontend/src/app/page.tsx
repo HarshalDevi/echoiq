@@ -2,8 +2,7 @@
 
 import { useState, type ChangeEvent } from "react";
 
-// Use Render in prod (via NEXT_PUBLIC_API_BASE), fall back to local in dev
-const API =
+const API_LABEL =
   process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/, "") ?? "http://localhost:10000";
 
 type TranscribeResponse = { transcript?: string };
@@ -36,11 +35,11 @@ export default function Home() {
     try {
       setLoading(true);
 
-      // 1) /transcribe
+      // 1) /transcribe (proxy)
       const fd = new FormData();
       fd.append("file", file, file.name || "audio.wav");
 
-      const transcribeRes = await fetch(`${API}/transcribe`, {
+      const transcribeRes = await fetch("/api/transcribe", {
         method: "POST",
         body: fd,
       });
@@ -49,8 +48,8 @@ export default function Home() {
       const text = transcribeJson.transcript ?? "";
       setTranscript(text);
 
-      // 2) /summarize
-      const summarizeRes = await fetch(`${API}/summarize`, {
+      // 2) /summarize (proxy)
+      const summarizeRes = await fetch("/api/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -59,8 +58,8 @@ export default function Home() {
       const summarizeJson = (await summarizeRes.json()) as SummarizeResponse;
       setSummary(summarizeJson.summary ?? "");
 
-      // 3) /sentiment
-      const sentimentRes = await fetch(`${API}/sentiment`, {
+      // 3) /sentiment (proxy)
+      const sentimentRes = await fetch("/api/sentiment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -83,7 +82,8 @@ export default function Home() {
         <h1 className="title">EchoIQ</h1>
         <p className="subtitle">Transcribe. Summarize. Understand.</p>
 
-        <p style={{ opacity: 0.7, fontSize: 12, marginBottom: 8 }}>API: {API}</p>
+        {/* Just a label for debugging; calls now go through /api/* */}
+        <p style={{ opacity: 0.7, fontSize: 12, marginBottom: 8 }}>API: {API_LABEL}</p>
 
         <input type="file" accept=".wav,audio/wav" onChange={onFileChange} />
 
