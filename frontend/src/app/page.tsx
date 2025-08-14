@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+// Use Render in prod (via NEXT_PUBLIC_API_BASE), fall back to local in dev
 const API =
   process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/, "") ?? "http://localhost:10000";
 
@@ -73,9 +74,7 @@ export default function Home() {
         <h1 className="title">EchoIQ</h1>
         <p className="subtitle">Transcribe. Summarize. Understand.</p>
 
-        <p style={{ opacity: 0.7, fontSize: 12, marginBottom: 8 }}>
-          API: {API}
-        </p>
+        <p style={{ opacity: 0.7, fontSize: 12, marginBottom: 8 }}>API: {API}</p>
 
         <input
           type="file"
