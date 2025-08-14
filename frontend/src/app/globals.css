@@ -1,0 +1,97 @@
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Grid Background */
+.grid-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  width: 100vw;
+  height: 100vh;
+  background:
+    linear-gradient(rgba(255, 0, 0, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.08) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: moveGrid 20s linear infinite;
+  opacity: 0.3;
+  transition: opacity 0.5s ease, filter 0.5s ease;
+}
+
+/* Hover animation to brighten grid */
+body:hover .grid-background {
+  opacity: 0.8;
+  filter: brightness(1.8);
+}
+
+@keyframes moveGrid {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 100px 100px, 100px 100px; }
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 1rem;
+  justify-content: center;
+  min-height: 100vh;
+  color: white;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: bold;
+  color: red;
+  margin-bottom: 0.25rem;
+  text-shadow: 0 0 10px red;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: #aaa;
+  margin-bottom: 2rem;
+}
+
+input[type="file"] {
+  margin: 1rem 0;
+  color: white;
+}
+
+button {
+  background-color: red;
+  color: white;
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 0 0 10px red;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #ff3333;
+  box-shadow: 0 0 20px red;
+}
+
+.result-box {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 600px;
+  margin-top: 1.5rem;
+  border: 1px solid red;
+  box-shadow: 0 0 10px red;
+}
+
+.result-box h3 {
+  color: red;
+  margin-bottom: 0.5rem;
+}

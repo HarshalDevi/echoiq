@@ -1,0 +1,38 @@
+# -------- General / OS / logs --------
+.DS_Store
+Thumbs.db
+*.log
+*.pem
+# ignore env files anywhere (commit a .env.example instead)
+.env*
+
+# -------- Frontend (Next.js in /frontend) --------
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
+frontend/.vercel/
+frontend/out/
+frontend/build/
+frontend/coverage/
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# -------- Backend (Python in /backend) --------
+backend/.venv/
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/.cache/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+# temp files your app writes
+backend/temp_audio.wav
