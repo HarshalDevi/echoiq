@@ -1,12 +1,15 @@
-# backend/ai_engine.py
 from __future__ import annotations
-import os, re, requests
-from typing import List, Optional
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from faster_whisper import WhisperModel  # keep using faster-whisper for STT
+import os
+import re
+import requests
+from typing import Optional, List
 
-HF_MODEL = os.getenv("HF_SUMMARY_MODEL", "google-t5/t5-small")
-HF_TOKEN = os.getenv("HF_API_TOKEN", "").strip()
+from faster_whisper import WhisperModel
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+# --- Hugging Face Inference API config ---
+HF_MODEL = os.getenv("HF_SUMMARY_MODEL", "t5-small")          # e.g. "t5-small" or "google/flan-t5-small"
+HF_TOKEN = os.getenv("HF_API_TOKEN", "").strip()               # set in Render env
 
 def _split_sentences(text: str) -> List[str]:
     return [s for s in re.split(r'(?<=[.!?])\s+', (text or "").strip()) if s]
@@ -15,27 +18,27 @@ def _fallback_summary(text: str, max_sents: int = 2, max_chars: int = 300) -> st
     sents = _split_sentences(text)
     if sents:
         out = " ".join(sents[:max_sents]).strip()
-        return out[:max_chars].strip() if out else (text or "")[:max_chars].strip()
-    return (text or "")[:max_chars].strip()
+        return out[:max_chars] if out else (text or "")[:max_chars]
+    return (text or "")[:max_chars]
 
 class AIEngine:
     def __init__(self):
-        # small model to fit Render free CPU RAM
-        self._stt: Optional[WhisperModel] = None
-        self._sent = SentimentIntensityAnalyzer()
+        self._asr: Optional[WhisperModel] = None
+        self._vader = SentimentIntensityAnalyzer()
         self._last_summary_source = "fallback"
 
-    # ---------- STT ----------
-    def _load_stt(self):
-        if self._stt is None:
-            self._stt = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+    # ---------- Speech-to-text ----------
+    def _asr_model(self) -> WhisperModel:
+        if self._asr is None:
+            # very small model for 512MiB instances
+            self._asr = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+        return self._asr
 
     def transcribe(self, audio_file: str) -> str:
-        self._load_stt()
-        segments, _ = self._stt.transcribe(audio_file, beam_size=1, vad_filter=True)
-        return " ".join(seg.text for seg in segments).strip()
+        segments, _ = self._asr_model().transcribe(audio_file, beam_size=1, vad_filter=True)
+        return " ".join(s.text for s in segments).strip()
 
-    # ---------- Summarize via HF Inference API (with fallback) ----------
+    # ---------- Summarize via HF Inference (with safe fallback) ----------
     def summarize(self, text: str) -> str:
         txt = (text or "").strip()
         if not txt:
@@ -44,11 +47,11 @@ class AIEngine:
 
         if HF_TOKEN:
             try:
-                # T5 likes the "summarize:" prefix
+                # T5-style “summarize:” prefix helps
                 payload = {
-                    "inputs": f"summarize: {txt[:2000]}",    # cap input length
+                    "inputs": f"summarize: {txt[:2000]}",   # cap very long input
                     "parameters": {"max_length": 60, "min_length": 20, "do_sample": False},
-                    "options": {"wait_for_model": True},     # handle cold starts remotely
+                    "options": {"wait_for_model": True},     # handle cold starts on HF
                 }
                 r = requests.post(
                     f"https://api-inference.huggingface.co/models/{HF_MODEL}",
@@ -61,7 +64,7 @@ class AIEngine:
                     if isinstance(data, list) and data and "summary_text" in data[0]:
                         self._last_summary_source = "huggingface"
                         return (data[0]["summary_text"] or "").strip()
-                # non-200 or unexpected body -> fallback
+                # any non-200 or unexpected body → fallback
             except Exception:
                 pass
 
@@ -73,7 +76,9 @@ class AIEngine:
 
     # ---------- Sentiment ----------
     def get_sentiment(self, text: str) -> str:
-        score = self._sent.polarity_scores(text or "")["compound"]
-        if score >= 0.2: return "POSITIVE"
-        if score <= -0.2: return "NEGATIVE"
+        c = self._vader.polarity_scores(text or "")["compound"]
+        if c >= 0.2:
+            return "POSITIVE"
+        if c <= -0.2:
+            return "NEGATIVE"
         return "NEUTRAL"

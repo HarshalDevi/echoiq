@@ -1,31 +1,31 @@
 from fastapi import FastAPI, WebSocket, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
+
 from signaling import signaling_router
-from ai_engine import AIEngine
+from ai_engine import AIEngine, HF_MODEL, HF_TOKEN
 
 app = FastAPI()
 
-# --- CORS: production Vercel domain + previews + local dev ---
+# --- CORS (OK to keep even though Vercel proxies) ---
 ALLOWED_ORIGINS = [
-    "https://echoiq.vercel.app",   # production
-    "http://localhost:3000",       # local dev
+    "https://echoiq.vercel.app",  # production
+    "http://localhost:3000",      # local dev
 ]
-# allow preview deploys like https://echoiq-xxxxx.vercel.app
-ALLOWED_ORIGIN_REGEX = r"^https://echoiq-[a-z0-9\-]+\.vercel\.app$"
+ALLOWED_ORIGIN_REGEX = r"^https://echoiq-[a-z0-9\-]+\.vercel\.app$"  # Vercel previews
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=ALLOWED_ORIGIN_REGEX,
-    allow_credentials=False,       # not using cookies -> keep CORS simple
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# WebSocket routes (unchanged)
+# WebSocket routes
 app.include_router(signaling_router)
 
-# ---- Lazy init so models load only on first use ----
+# Lazy init so models load only when used
 _engine: AIEngine | None = None
 def get_engine() -> AIEngine:
     global _engine
@@ -40,6 +40,11 @@ def root():
 @app.get("/health")
 def health():
     return {"ok": True}
+
+# Small debug endpoint to confirm env/model (no secrets returned)
+@app.get("/debug/hf")
+def debug_hf():
+    return {"has_token": bool(HF_TOKEN), "model": HF_MODEL}
 
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
