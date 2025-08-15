@@ -47,11 +47,11 @@ class AIEngine:
 
         if HF_TOKEN:
             try:
-                # T5-style “summarize:” prefix helps
                 payload = {
-                    "inputs": f"summarize: {txt[:2000]}",   # cap very long input
+                    # T5 likes the "summarize:" prefix; works with text2text-generation
+                    "inputs": f"summarize: {txt[:2000]}",
                     "parameters": {"max_length": 60, "min_length": 20, "do_sample": False},
-                    "options": {"wait_for_model": True},     # handle cold starts on HF
+                    "options": {"wait_for_model": True},
                 }
                 r = requests.post(
                     f"https://api-inference.huggingface.co/models/{HF_MODEL}",
@@ -61,10 +61,16 @@ class AIEngine:
                 )
                 if r.status_code == 200:
                     data = r.json()
-                    if isinstance(data, list) and data and "summary_text" in data[0]:
-                        self._last_summary_source = "huggingface"
-                        return (data[0]["summary_text"] or "").strip()
-                # any non-200 or unexpected body → fallback
+                    # Accept BOTH shapes:
+                    # - [{"summary_text": "..."}] (summarization pipeline)
+                    # - [{"generated_text": "..."}] (text2text-generation default for t5-small)
+                    if isinstance(data, list) and data:
+                        item = data[0] if isinstance(data[0], dict) else {}
+                        text_out = item.get("summary_text") or item.get("generated_text")
+                        if text_out:
+                            self._last_summary_source = "huggingface"
+                            return (text_out or "").strip()
+                # non-200 or unexpected body -> fallback
             except Exception:
                 pass
 
