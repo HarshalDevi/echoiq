@@ -54,9 +54,7 @@ async def summarize_text(request: Request):
     body = await request.json()
     text = body.get("text", "")
     summary = get_engine().summarize(text)
-    source = get_engine().summary_source()   # "fallback"
-    return {"summary": summary, "source": source}
-
+    return {"summary": summary, "source": get_engine().summary_source()}
 
 @app.post("/sentiment")
 async def sentiment_analysis(request: Request):
